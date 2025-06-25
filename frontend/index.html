@@ -1,31 +1,114 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>Ne Yiyeceğiz?</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
 </head>
+
 <body>
-    <script src="index.js">//source index.js</script>
-    <button onclick="randomlyPick()">kalanlardan rasgele seç</button>
-
-    <button onclick="addItem()">yeni yemek ekle</button>
-
+    <div class="container">
+        <h1>Ne Yiyeceğiz?</h1>
+        <div class="actions">
+            <button onclick="randomlyPick()">Kalanlardan Rasgele Seç</button>
+            <button onclick="addItem()">Yeni Yemek Ekle</button>
+        </div>
+        <div id="meals-container" class="meals-container"></div>
+    </div>
     <script>
         async function randomlyPick() {
-
+            const response = await fetch('http://localhost:3000/routes/api/randomlyPick', {
+                method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+            })
+                .then((response) => {
+                    if (!response.ok) {
+                        throw new Error('yemekler yüklenemedi');
+                    }
+                    return response.json();
+                })
+                .then((data) => {
+                    alert(data.meal.name);
+                })
         }
         async function addItem() {
-
+            const mealName = prompt("Yeni yemek adı girin:");
+            if (!mealName) return;
+            try {
+                const response = await fetch('http://localhost:3000/routes/api/addItem', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ name: mealName })
+                });
+                if (!response.ok) throw new Error("Yemek eklenemedi");
+            } catch (error) {
+                console.error(error);
+                alert("Yemek eklenirken hata oluştu.");
+                return;
+            }
+            // Only call getMeals if addItem succeeded
+            getMeals();
         }
-        function getMeals(){
-            
-        }
-        //remove ıtem?
+        function getMeals() {
+            fetch('http://localhost:3000/routes/api/getMeals', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+                .then((response) => {
+                    if (!response.ok) {
+                        throw new Error('yemekler yüklenemedi');
+                    }
+                    return response.json();
+                })
+                .then((data) => {
+                    const mealsContainer = document.getElementById('meals-container');
+                    mealsContainer.innerHTML = "";
+                    if (data.meals.length === 0) {
+                        mealsContainer.innerHTML = "<div style='text-align:center;color:#888;'>Hiç yemek yok.</div>";
+                    } else {
+                        data.meals.forEach(meal => {
+                            const card = document.createElement('div');
+                            card.className = 'meal-card';
 
-        window.onload = "getMeals()";
+                            // Meal name span
+                            const nameSpan = document.createElement('span');
+                            nameSpan.textContent = meal.name;
+                            card.appendChild(nameSpan);
+
+                            // Remove button
+                            const removeBtn = document.createElement('button');
+                            removeBtn.textContent = "Sil";
+                            removeBtn.className = "remove-btn";
+                            removeBtn.onclick = async (e) => {
+                                e.stopPropagation();
+                                if (confirm("Bu yemeği silmek istediğinize emin misiniz?")) {
+                                    await fetch(`http://localhost:3000/routes/api/removeItem/${meal._id}`, {
+                                        method: 'DELETE'
+                                    });
+                                    getMeals();
+                                }
+                            };
+                            card.appendChild(removeBtn);
+
+                            mealsContainer.appendChild(card);
+                        });
+                    }
+                })
+                .catch((error) => {
+                    console.error('fetch error on frontend: ', error);
+                });
+        }
+        window.onload = getMeals;
     </script>
-
-    
 </body>
+
 </html>
